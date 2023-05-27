@@ -1,0 +1,13 @@
+name: Presentation_final_shinyapp
+title: Presentation_final_shinyapp
+username:
+account: hanachi
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9197241
+bundleId: 7270438
+url: https://hanachi.shinyapps.io/Presentation_final_shinyapp/
+when: 1685174449.20015
+lastSyncTime: 1685174449.20018
+asMultiple: FALSE
+asStatic: FALSE

@@ -1,0 +1,152 @@
+---
+title: "Presentation_demo"
+output: html_document
+date: "2023-05-19"
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(shiny)
+library(plotly)
+library(rsconnect)
+
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Deep Learning Classification Prediction for Different Models"),
+  sidebarLayout(
+    sidebarPanel(
+       h4("User Manual"),
+       p("(1) Adjust point size: Use the slider to change the size of the points."),
+       p("(2) Select a model: Choose a model of interest from the available options."),
+       p("(3) Cluster selection: Choose a specific cluster or leave it at the default setting."),
+       p("(4) Explore cells of interest: Hover over the plot to view information for each cell."),
+       p("Cell search: Enter a cell ID and click 'Search cell' to retrieve specific cell information.(Sample test cases: cell 1023 and 7999)"),
+       p("(5) Reset functionality: Press 'Reset' to restore hover feature."),
+       p("(6) The accuracy displayed below the plot represents overall accuracy, or cluster-specific accuracy if a specific cluster is chosen.."),
+       br(),
+      
+      sliderInput("size", "Point size:", min = 0.01, max = 1, value = 0.3),
+      selectInput("models", "Models:", choices = c("Model_1", "Model_2", "Model_3", "Model_4", "Model_5", "Model_6", "Model_7", "Model_8")),
+      selectInput("cluster", "Cluster:", choices = c("All", 1:28), selected = "All"),
+      textInput("cellID", "Enter Cell ID:"),
+      actionButton("showTooltip", "Search Cell"),
+      actionButton("resetTooltip", "Reset"),
+      verbatimTextOutput("infoBox"),
+      br(),
+      h4("Model Descriptions:"),
+       p("Model 1: CNN : Independent Sampling - Clean Data"),
+       p("Model 2: CNN : Independent Sampling - Raw Data"),
+       p("Model 3: CNN : Stratified Sampling - Clean Data"),
+       p("Model 4: CNN : Stratified Sampling - Raw Data "),
+       p("Model 5: Transformers : Independent Sampling - Clean Data"),
+       p("Model 6: Transformers : Independent Sampling - Raw Data"),
+       p("Model 7: Transformers : Stratified Sampling - Clean Data"),
+       p("Model 8: Transformers : Stratified Sampling - Raw Data")
+    ),
+    mainPanel(
+      plotlyOutput("plot"),
+      verbatimTextOutput("summary")  # Add a text output element for the summary
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  # Read the selected CSV file based on user input
+  data <- reactive({
+    read.csv(paste0("/Users/mac/Desktop/shiny_output/", input$models, ".csv"))
+  })
+  
+  # Filter data based on cluster selection
+  filteredData <- reactive({
+    if (input$cluster != "All") {
+      data() %>% filter(Label.1 == input$cluster)
+    } else {
+      data()
+    }
+  })
+  
+  # Store original tooltip text
+  originalText <- reactiveVal(NULL)
+  
+  # Update the plot
+  output$plot <- renderPlotly({
+    ggpnew <- ggplot(data = filteredData(), aes(x = x_centroid, y = y_centroid, colour = as.factor(Label.1),
+                                                text = paste("Cell id: ", cell_id,
+                                                             "<br>Predicted cluster: ", Label.1,
+                                                             "<br>Probabilities: ", Probability.1,
+                                                             "<br>Top 5 genes: ", genes1, ", ",genes2, ", ", genes3, ", ", genes4, ", ", genes5,
+                                                             "<br>Majority cell type: ", majority_cell_type, sep = ""))) +
+      geom_point(size = input$size) +
+      theme(
+        plot.background = element_rect(fill = "black"),
+        panel.background = element_rect(fill = "black"),
+        plot.title = element_text(color = "white")
+      ) +
+      labs(colour = "Cluster", title = unique(filteredData()$Title))
+    
+    p <- ggplotly(ggpnew, tooltip = "text")
+    
+    # Store the original tooltip text
+    originalText(p$x$data[[1]]$text)
+    
+    p
+  })
+  
+  # Calculate and display the summary
+  output$summary <- renderPrint({
+    if (input$cluster != "All") {
+      sum_status <- sum(filteredData()$status) / nrow(filteredData())
+    } else {
+      sum_status <- unique(data()$Test.Accuracy)
+    }
+    
+    paste("Accuracy:", round(sum_status, 3))
+  })
+  
+  # Show tooltip for a specific cell ID
+  observeEvent(input$showTooltip, {
+    req(input$cellID)
+    
+    cellID <- input$cellID
+    data <- filteredData()
+    
+    if (cellID %in% data$cell_id) {
+      selectedPoint <- data[data$cell_id == cellID, ]
+      
+      output$infoBox <- renderPrint({
+        cat("Cell id: ", selectedPoint$cell_id,
+            "\nPredicted cluster: ", selectedPoint$Label.1,
+            "\nProbabilities: ", selectedPoint$Probability.1,
+            "\nTop 5 genes: ", selectedPoint$genes1, ", ", selectedPoint$genes2, ", ", selectedPoint$genes3, ", ", selectedPoint$genes4, ", ", selectedPoint$genes5,
+            "\nMajority cell type: ", selectedPoint$majority_cell_type)
+      })
+      
+      plotlyProxy("plot", session) %>%
+        plotlyProxyInvoke("restyle", list(text = list(selectedPoint$text)))
+    } else {
+      output$infoBox <- renderPrint({
+        cat("Cell ID not found.")
+      })
+    }
+  })
+  
+  # Reset tooltip and info box
+  observeEvent(input$resetTooltip, {
+    output$infoBox <- NULL
+    
+    plotlyProxy("plot", session) %>%
+      plotlyProxyInvoke("restyle", list(text = list(originalText())))
+  })
+}
+
+# Run the app
+shinyApp(ui, server)
+```
+
+

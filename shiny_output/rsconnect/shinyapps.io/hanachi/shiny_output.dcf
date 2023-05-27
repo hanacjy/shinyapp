@@ -1,0 +1,11 @@
+name: shiny_output
+title:
+username:
+account: hanachi
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9192864
+bundleId: 7269889
+url: https://hanachi.shinyapps.io/shiny_output/
+when: 1685158175.93591
+lastSyncTime: 1685158175.93593
